@@ -34,7 +34,7 @@ def init(_boardname=None):
     game = Game('Cartes/' + name + '.json', SpriteBuilder)
     game.O = Ontology(True, 'SpriteSheet-32x32/tiny_spritesheet_ontology.csv')
     game.populate_sprite_names(game.O)
-    game.fps = 500  # frames per second
+    game.fps = 10 # frames per second
     game.mainiteration()
     player = game.player
     
@@ -172,7 +172,26 @@ def main():
             # print(choices)
             # print('---')
 
-    nb_jour =  100
+    def strategy_aleatoire():
+        # -------------------------------
+        # Strategie aleatoire
+        # -------------------------------
+        print("Strategy : aleatoire")
+        return random.randint(0,nb_restos-1)
+     
+    choix_tetu = random.randint(0,nb_restos-1)
+    def strategy_tetu():
+        # -------------------------------
+        # Strategie tetu
+        # -------------------------------  
+        print("Strategy : tetu")
+        return choix_tetu
+
+    def strategy_greedy():
+        pass
+
+
+    nb_jour = 2
     print(f"NbJours : {nb_jour}")
     
     points = [0]*nb_players
@@ -200,23 +219,53 @@ def main():
             game.mainiteration()
 
 
-        # -------------------------------
-        # Strategie aleatoire
-        # -------------------------------
+        #-------------------------------
+        # Boucle principale de déplacements 
+        #-------------------------------
+        
+        # choix_resto=[]
+        # path = []
+        # for p in range(0,nb_players):
+        #     print("Player ", p)
+        #     if (p==0):
+        #         choix_resto.append(pos_restaurants[strategy_tetu()])  # choix du restaurant pour le joueur 0 (strategie différente) (A)
+        #     else:
+        #         choix_resto.append(pos_restaurants[strategy_aleatoire()]) #(B)
+        #     print("Going to ", choix_resto[p])
+        #     pos_player = (x_init,y_init[p])
+        #     print("Starting from ", pos_player)
 
-        choix_resto=[]
+        #     # -------------------------------
+        #     # calcul A* pour chaque joueur
+        #     # -------------------------------
+
+        #     g = np.ones((nb_lignes, nb_cols), dtype=bool)  # une matrice remplie par defaut a True
+
+        #     for i in range(nb_lignes):  # on exclut aussi les bordures du plateau
+        #         g[0][i] = False
+        #         g[1][i] = False
+        #         g[nb_lignes - 1][i] = False
+        #         g[nb_lignes - 2][i] = False
+        #         g[i][0] = False
+        #         g[i][1] = False
+        #         g[i][nb_lignes - 1] = False
+        #         g[i][nb_lignes - 2] = False
+        #     prob = ProblemeGrid2D(pos_player, choix_resto[p], g, 'manhattan')
+        #     path.append(probleme.astar(prob, verbose=False))
+        #     print("Chemin trouvé:", path[p])
+
         path = []
         for p in range(0,nb_players):
+            ordre_restos = random.sample(pos_restaurants, nb_restos)
             print("Player ", p)
-            choix_resto.append(pos_restaurants[random.randint(0, nb_restos-1)])
-            print("Going to ", choix_resto[p])
+            print("Ordre ", ordre_restos)
             pos_player = (x_init,y_init[p])
             print("Starting from ", pos_player)
 
-        # -------------------------------
-        # calcul A* pour chaque joueur
-        # -------------------------------
-
+            # -------------------------------
+            # calcul chemin pour chaque joueur
+            # -------------------------------
+            
             g = np.ones((nb_lignes, nb_cols), dtype=bool)  # une matrice remplie par defaut a True
 
             for i in range(nb_lignes):  # on exclut aussi les bordures du plateau
@@ -228,15 +277,18 @@ def main():
                 g[i][1] = False
                 g[i][nb_lignes - 1] = False
                 g[i][nb_lignes - 2] = False
-            prob = ProblemeGrid2D(pos_player, choix_resto[p], g, 'manhattan')
+
+            prob = ProblemeGrid2D(pos_player, ordre_restos[0], g, 'manhattan')
             path.append(probleme.astar(prob, verbose=False))
+
+            for i in range(1, nb_restos):
+                prob = ProblemeGrid2D(ordre_restos[i-1], ordre_restos[i], g, 'manhattan')
+                path[p] += probleme.astar(prob, verbose=False)[1:]
+            
             print("Chemin trouvé:", path[p])
+            
 
-
-        #-------------------------------
-        # Boucle principale de déplacements 
-        #-------------------------------
-
+            
         for i in range(iterations):
             
             for j in range(0,nb_players):
@@ -248,7 +300,10 @@ def main():
                     (row,col) = path[j][i]
                     players[j].set_rowcol(row, col)
                     print("pos joueur:", j,  row, col)
-                    
+
+                    if (path[j][i] in pos_restaurants and nb_players_in_resto(pos_restaurants.index(path[j][i])) <= 2):
+                        path[j] = []
+                        
                     for id, (item_row, item_col) in enumerate(item_states(coupe_files)):
                         if (item_row == row and item_col == col):
                             if not has_coupe_file[j]:
