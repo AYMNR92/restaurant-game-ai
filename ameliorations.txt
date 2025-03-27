@@ -1,0 +1,5 @@
+choix_tetu différent pour chaque joueur qui l'utilise
+autres distributions pour stochastique
+faire plus d'essais par affrontement et faire une moyenne pour plus de représentativité
+fictitous play 
+regret-matching

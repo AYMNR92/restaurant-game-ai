@@ -69,12 +69,15 @@ def main():
     
     players = [o for o in game.layers['joueur']]
     nb_players = len(players)
-
-    strat1 = "A"
-    strat2 = "T"
+    
     # A = aleatoire
     # T = tetu
-    # G = greedy 
+    # S = stochastique 
+    # G = greedy
+    # F = fictitious play 
+    strat1 = "A"
+    strat2 = "F" #strat seule 
+
     #liste des strategies
     strat_players = [strat1 for o in players]    
     #première strat différente 
@@ -101,7 +104,7 @@ def main():
         # donne la liste des coordonnees des joueurs
         return [p.get_rowcol() for p in players]
     
-    nb_jour = 2
+    nb_jour = 100
     
     #-------------------------------
     # Rapport de ce qui est trouve sut la carte
@@ -192,7 +195,8 @@ def main():
     points = [0]*nb_players
     has_coupe_file = [False]*nb_players
     choix_tetu = random.randint(0,nb_restos-1) 
-    
+    historique_choix = [[] for i in range(nb_players)]
+
     for i in range(nb_jour):
         #-------------------------------
         # On place tous les coupe_files du bord au hasard
@@ -242,14 +246,26 @@ def main():
                     print("Going to ", choix_resto[p])
                     prob = ProblemeGrid2D(pos_player, choix_resto[p], g, 'manhattan')
                     path.append(probleme.astar(prob, verbose=False))
+                
                 case "T":
                     print("Strategy : tetu")
                     choix_resto.append(pos_restaurants[choix_tetu])
                     print("Going to ", choix_resto[p])
                     prob = ProblemeGrid2D(pos_player, choix_resto[p], g, 'manhattan')
                     path.append(probleme.astar(prob, verbose=False))
+                
+                case "S":
+                    # choix arbitraire d'une loi binomiale 
+                    print("Strategy : stochastique")
+                    rng = np.random.binomial(nb_restos-1,0.5,1)
+                    choix_resto.append(pos_restaurants[rng[0]])
+                    print("Going to ", choix_resto[p])
+                    prob = ProblemeGrid2D(pos_player, choix_resto[p], g, 'manhattan')
+                    path.append(probleme.astar(prob, verbose=False))
+                
                 case "G":
                     print("Strategy : greedy")
+                    choix_resto.append(None) # pour eviter les décalage d'index pour les autres strat
                     ordre_restos = random.sample(pos_restaurants, nb_restos)
                     print("Ordre ", ordre_restos)
                     # calcul A* pour premier resto
@@ -260,6 +276,34 @@ def main():
                     for i in range(1, nb_restos):
                         prob = ProblemeGrid2D(ordre_restos[i-1], ordre_restos[i], g, 'manhattan')
                         path[p] += probleme.astar(prob, verbose=False)[1:]
+                
+                case "F":
+                    print("Strategy : fictitous play")
+
+                    # calcul fréquence choix autres joueurs 
+                    choix_counts = {r : 0 for r in range(nb_restos)}
+                    total_choix = 0 
+                    
+                    for j in range(nb_players):
+                        if j!=p:
+                            for resto in historique_choix[j]:
+                                choix_counts[resto] += 1
+                                total_choix += 1
+
+                    # si pas d'historique (premier tour) on choisit aléatoirement  
+                    if total_choix == 0:
+                        choix_resto.append(pos_restaurants[random.randint(0,nb_restos-1)])   
+                    else:
+                        #calculer la proba d'occupation de chaque resto
+                        prob_occupation = {r : choix_counts[r] / total_choix for r in range(nb_restos)}
+                        
+                        #choisir le resto avec le moins d"attendance attendue
+                        choix_resto.append(pos_restaurants[min(prob_occupation, key=prob_occupation.get)])
+                    
+                    print("Going to ", choix_resto[p])
+                    prob = ProblemeGrid2D(pos_player, choix_resto[p], g, 'manhattan')
+                    path.append(probleme.astar(prob, verbose=False))
+            
                 case _:
                     print("Stratégie inconnue")
                     exit()
@@ -306,10 +350,15 @@ def main():
             # mise à jour du pleateau de jeu
             game.mainiteration()
 
+        # mise a jour de l'historique des choix
+        for r in range(nb_restos):
+            for p in players_in_resto(r):
+                historique_choix[p].append(r)
+        
+        print("historique ",historique_choix)
         # -------------------------------
         # Calcul des scores
         # -------------------------------
-
 
         # calcul du nombre de joueurs sur chaque resto
         print("-------------------------------")
@@ -351,16 +400,24 @@ def main():
             namestrat1 = "aléatoire"
         case "T":
             namestrat1 = "tétu"
+        case "S":
+            namestrat1 = "stochastique"
         case "G":
             namestrat1 = "greedy"
+        case "F":
+            namestrat1 = "fictitous play"
 
     match strat2:
         case "A":
             namestrat2 = "aléatoire"
         case "T":
             namestrat2 = "tétu"
+        case "S":
+            namestrat2 = "stochastique"
         case "G":
             namestrat2 = "greedy"
+        case "F":
+            namestrat2 = "fictitous play"
             
     print(ttl_points)
     x = []
@@ -376,7 +433,7 @@ def main():
     plt.xlabel("nb iter")
     plt.ylabel("nb points")
     plt.legend()
-    plt.show()    
+    plt.show()
 
 
 if __name__ == '__main__':
