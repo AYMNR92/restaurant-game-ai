@@ -21,6 +21,8 @@ import pySpriteWorld.glo
 from search.grid2D import ProblemeGrid2D
 from search import probleme
 
+import matplotlib.pyplot as plt
+
 # ---- ---- ---- ---- ---- ----
 # ---- Main                ----
 # ---- ---- ---- ---- ---- ----
@@ -29,16 +31,17 @@ game = Game()
 
 def init(_boardname=None):
     global player,game
-    name = _boardname if _boardname is not None else 'restaurant-map2'
+    name = _boardname if _boardname is not None else 'restaurant-map'
     #game = Game('./Cartes/' + name + '.json', SpriteBuilder)
     game = Game('Cartes/' + name + '.json', SpriteBuilder)
     game.O = Ontology(True, 'SpriteSheet-32x32/tiny_spritesheet_ontology.csv')
     game.populate_sprite_names(game.O)
-    game.fps = 10 # frames per second
+    game.fps = 1000 # frames per second
     game.mainiteration()
     player = game.player
     
 def main():
+    ttl_points = [] # evolution du nombre de points pour chaque joueurs (sert pour le plot des comparaisons)
 
     #for arg in sys.argv:
     iterations = 40 # nb de pas max par episode
@@ -67,6 +70,17 @@ def main():
     players = [o for o in game.layers['joueur']]
     nb_players = len(players)
 
+    strat1 = "A"
+    strat2 = "T"
+    # A = aleatoire
+    # T = tetu
+    # G = greedy 
+    #liste des strategies
+    strat_players = [strat1 for o in players]    
+    #première strat différente 
+    strat_players[0] = strat2
+
+
     pos_restaurants = [(3,4),(3,7),(3,10),(3,13),(3,16)] # 5 restaurants positionnes
     nb_restos = len(pos_restaurants)
     capacity = [1]*nb_restos
@@ -87,7 +101,8 @@ def main():
         # donne la liste des coordonnees des joueurs
         return [p.get_rowcol() for p in players]
     
-
+    nb_jour = 2
+    
     #-------------------------------
     # Rapport de ce qui est trouve sut la carte
     #-------------------------------
@@ -98,6 +113,7 @@ def main():
     print("lignes:", nb_lignes)
     print("colonnes:", nb_cols)
     print("coup_files:",nb_coupe_files)
+    print(f"NbJours : {nb_jour}")
     print("-------------------------------------------")
 
     #-------------------------------
@@ -172,31 +188,11 @@ def main():
             # print(choices)
             # print('---')
 
-    def strategy_aleatoire():
-        # -------------------------------
-        # Strategie aleatoire
-        # -------------------------------
-        print("Strategy : aleatoire")
-        return random.randint(0,nb_restos-1)
-     
-    choix_tetu = random.randint(0,nb_restos-1)
-    def strategy_tetu():
-        # -------------------------------
-        # Strategie tetu
-        # -------------------------------  
-        print("Strategy : tetu")
-        return choix_tetu
-
-    def strategy_greedy():
-        pass
-
-
-    nb_jour = 2
-    print(f"NbJours : {nb_jour}")
     
     points = [0]*nb_players
     has_coupe_file = [False]*nb_players
-
+    choix_tetu = random.randint(0,nb_restos-1) 
+    
     for i in range(nb_jour):
         #-------------------------------
         # On place tous les coupe_files du bord au hasard
@@ -210,7 +206,7 @@ def main():
         #-------------------------------
         # On place tous les joueurs au hasard sur la ligne du bas
         #-------------------------------
-
+        
         y_init = [3,5,7,9,11,13,15,17]
         x_init = 18
         random.shuffle(y_init)
@@ -218,53 +214,11 @@ def main():
             players[i].set_rowcol(x_init,y_init[i])
             game.mainiteration()
 
-
-        #-------------------------------
-        # Boucle principale de déplacements 
-        #-------------------------------
-        
-        # choix_resto=[]
-        # path = []
-        # for p in range(0,nb_players):
-        #     print("Player ", p)
-        #     if (p==0):
-        #         choix_resto.append(pos_restaurants[strategy_tetu()])  # choix du restaurant pour le joueur 0 (strategie différente) (A)
-        #     else:
-        #         choix_resto.append(pos_restaurants[strategy_aleatoire()]) #(B)
-        #     print("Going to ", choix_resto[p])
-        #     pos_player = (x_init,y_init[p])
-        #     print("Starting from ", pos_player)
-
-        #     # -------------------------------
-        #     # calcul A* pour chaque joueur
-        #     # -------------------------------
-
-        #     g = np.ones((nb_lignes, nb_cols), dtype=bool)  # une matrice remplie par defaut a True
-
-        #     for i in range(nb_lignes):  # on exclut aussi les bordures du plateau
-        #         g[0][i] = False
-        #         g[1][i] = False
-        #         g[nb_lignes - 1][i] = False
-        #         g[nb_lignes - 2][i] = False
-        #         g[i][0] = False
-        #         g[i][1] = False
-        #         g[i][nb_lignes - 1] = False
-        #         g[i][nb_lignes - 2] = False
-        #     prob = ProblemeGrid2D(pos_player, choix_resto[p], g, 'manhattan')
-        #     path.append(probleme.astar(prob, verbose=False))
-        #     print("Chemin trouvé:", path[p])
-
+        choix_resto=[]
         path = []
-        for p in range(0,nb_players):
-            ordre_restos = random.sample(pos_restaurants, nb_restos)
-            print("Player ", p)
-            print("Ordre ", ordre_restos)
-            pos_player = (x_init,y_init[p])
-            print("Starting from ", pos_player)
 
-            # -------------------------------
-            # calcul chemin pour chaque joueur
-            # -------------------------------
+        for p in range(0,nb_players): 
+            print("Player ", p) 
             
             g = np.ones((nb_lignes, nb_cols), dtype=bool)  # une matrice remplie par defaut a True
 
@@ -278,19 +232,43 @@ def main():
                 g[i][nb_lignes - 1] = False
                 g[i][nb_lignes - 2] = False
 
-            prob = ProblemeGrid2D(pos_player, ordre_restos[0], g, 'manhattan')
-            path.append(probleme.astar(prob, verbose=False))
+            pos_player = (x_init,y_init[p])
+            print("Starting from ", pos_player)
 
-            for i in range(1, nb_restos):
-                prob = ProblemeGrid2D(ordre_restos[i-1], ordre_restos[i], g, 'manhattan')
-                path[p] += probleme.astar(prob, verbose=False)[1:]
-            
-            print("Chemin trouvé:", path[p])
-            
+            match strat_players[p]:
+                case "A":
+                    print("Strategy : aleatoire")
+                    choix_resto.append(pos_restaurants[random.randint(0,nb_restos-1)])   
+                    print("Going to ", choix_resto[p])
+                    prob = ProblemeGrid2D(pos_player, choix_resto[p], g, 'manhattan')
+                    path.append(probleme.astar(prob, verbose=False))
+                case "T":
+                    print("Strategy : tetu")
+                    choix_resto.append(pos_restaurants[choix_tetu])
+                    print("Going to ", choix_resto[p])
+                    prob = ProblemeGrid2D(pos_player, choix_resto[p], g, 'manhattan')
+                    path.append(probleme.astar(prob, verbose=False))
+                case "G":
+                    print("Strategy : greedy")
+                    ordre_restos = random.sample(pos_restaurants, nb_restos)
+                    print("Ordre ", ordre_restos)
+                    # calcul A* pour premier resto
+                    prob = ProblemeGrid2D(pos_player, ordre_restos[0], g, 'manhattan')
+                    path.append(probleme.astar(prob, verbose=False))
 
+                    # calcul A* de resto i -> resto i+1 pour les autres restos
+                    for i in range(1, nb_restos):
+                        prob = ProblemeGrid2D(ordre_restos[i-1], ordre_restos[i], g, 'manhattan')
+                        path[p] += probleme.astar(prob, verbose=False)[1:]
+                case _:
+                    print("Stratégie inconnue")
+                    exit()
+
+            #print("Chemin trouvé:", path[p])
+            print("-------------------------------")
             
         for i in range(iterations):
-            
+        
             for j in range(0,nb_players):
 
                 # on fait bouger chaque joueur jusqu'à son but
@@ -299,11 +277,16 @@ def main():
                 if i<len(path[j]): # si le joueur n'est pas deja arrive
                     (row,col) = path[j][i]
                     players[j].set_rowcol(row, col)
-                    print("pos joueur:", j,  row, col)
+                    #print("pos joueur:", j,  row, col)
 
-                    if (path[j][i] in pos_restaurants and nb_players_in_resto(pos_restaurants.index(path[j][i])) <= 2):
-                        path[j] = []
-                        
+                    match strat_players[j]:
+                        case "G":        
+                            # on s'arrete si nombre de personnes < seuil
+                            if (path[j][i] in pos_restaurants and nb_players_in_resto(pos_restaurants.index(path[j][i])) <= 2):
+                                path[j] = []
+                        case _:
+                            pass
+                                
                     for id, (item_row, item_col) in enumerate(item_states(coupe_files)):
                         if (item_row == row and item_col == col):
                             if not has_coupe_file[j]:
@@ -329,23 +312,26 @@ def main():
 
 
         # calcul du nombre de joueurs sur chaque resto
-
+        print("-------------------------------")
         attendance = [0]*nb_restos
         for r in range(0,nb_restos):
             attendance[r]=nb_players_in_resto(r)
 
-        print(attendance)
+        print("attendance : ", attendance)
 
         # calcul du service et points
         
         calcul_points_iter(points)
-
+        ttl_points.append(points.copy())
+        print("points", points)
+        print("-------------------------------")
+        
         #depose les coupes-files
         for i in range(nb_players):
-            # on n'utilise pas depose car elle met l'item a la position du player 
+            
+            
+            # on n'utilise pas depose car met l'item a la position du player 
             # players[i].depose(game.layers)
-            
-            
             candidats = [o for o in players[i].inventory]
             
             if candidats:
@@ -355,11 +341,43 @@ def main():
                 coupe_files = [o for o in game.layers["ramassable"]]
                 nb_coupe_files= len(coupe_files)
     
-        print(points)
-                
     pygame.quit()
 
-    #-------------------------------
+    # -------------------------------  
+    # Plot comparaison stratégies
+    # -------------------------------
+    match strat1:
+        case "A":
+            namestrat1 = "aléatoire"
+        case "T":
+            namestrat1 = "tétu"
+        case "G":
+            namestrat1 = "greedy"
+
+    match strat2:
+        case "A":
+            namestrat2 = "aléatoire"
+        case "T":
+            namestrat2 = "tétu"
+        case "G":
+            namestrat2 = "greedy"
+            
+    print(ttl_points)
+    x = []
+    y = []
+    for elt in ttl_points:
+        x.append(elt[0])
+        y.append(np.mean(elt[1:]))
+
+    plt.figure(figsize=(7,7))
+    plt.title(f"Comparaison {namestrat2} (seul) vs {namestrat1}")
+    plt.plot(x, color='red',label=namestrat2)
+    plt.plot(y, color='blue',label=namestrat1)
+    plt.xlabel("nb iter")
+    plt.ylabel("nb points")
+    plt.legend()
+    plt.show()    
+
 
 if __name__ == '__main__':
     main()
