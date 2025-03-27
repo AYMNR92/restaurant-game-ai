@@ -75,7 +75,8 @@ def main():
     # S = stochastique 
     # G = greedy
     # F = fictitious play 
-    strat1 = "A"
+    # R = regret-matching
+    strat1 = "R"
     strat2 = "F" #strat seule 
 
     #liste des strategies
@@ -196,6 +197,7 @@ def main():
     has_coupe_file = [False]*nb_players
     choix_tetu = random.randint(0,nb_restos-1) 
     historique_choix = [[] for i in range(nb_players)]
+    regrets = [{r:0 for r in pos_restaurants} for i in range(nb_players)]
 
     for i in range(nb_jour):
         #-------------------------------
@@ -294,7 +296,7 @@ def main():
                     if total_choix == 0:
                         choix_resto.append(pos_restaurants[random.randint(0,nb_restos-1)])   
                     else:
-                        #calculer la proba d'occupation de chaque resto
+                        # calculer la proba d'occupation de chaque resto
                         prob_occupation = {r : choix_counts[r] / total_choix for r in range(nb_restos)}
                         
                         #choisir le resto avec le moins d"attendance attendue
@@ -303,7 +305,27 @@ def main():
                     print("Going to ", choix_resto[p])
                     prob = ProblemeGrid2D(pos_player, choix_resto[p], g, 'manhattan')
                     path.append(probleme.astar(prob, verbose=False))
-            
+
+                case "R":
+                    print("Strategy : Regret-Matching")
+
+                    total_regret = sum(regrets[p].values())
+
+                    if total_regret == 0:
+                        # Aucun regret choisir aléatoirement
+                        choix_resto.append(pos_restaurants[random.randint(0, nb_restos-1)])
+                    else:
+                        # Construire une distribution de probabilité selon les regrets
+                        prob_distribution = {r: regrets[p][r] / total_regret for r in pos_restaurants}
+                        
+                        # Tirer au sort en fonction de ces probabilités
+                        restos, probs = zip(*prob_distribution.items())
+                        choix_resto.append(random.choices(restos, weights=probs, k=1)[0])
+
+                    print("Going to ", choix_resto[p])
+                    prob = ProblemeGrid2D(pos_player, choix_resto[p], g, 'manhattan')
+                    path.append(probleme.astar(prob, verbose = False))
+
                 case _:
                     print("Stratégie inconnue")
                     exit()
@@ -328,6 +350,7 @@ def main():
                             # on s'arrete si nombre de personnes < seuil
                             if (path[j][i] in pos_restaurants and nb_players_in_resto(pos_restaurants.index(path[j][i])) <= 2):
                                 path[j] = []
+                        
                         case _:
                             pass
                                 
@@ -354,8 +377,8 @@ def main():
         for r in range(nb_restos):
             for p in players_in_resto(r):
                 historique_choix[p].append(r)
-        
-        print("historique ",historique_choix)
+
+
         # -------------------------------
         # Calcul des scores
         # -------------------------------
@@ -373,6 +396,16 @@ def main():
         calcul_points_iter(points)
         ttl_points.append(points.copy())
         print("points", points)
+
+        # mise a jour des regrets 
+        for p in range(nb_players):
+            gain_actuel = points[p]
+
+            for r in pos_restaurants:
+                if r!=choix_resto[p]:
+                    regret = max(0, points[pos_restaurants.index(r)] - gain_actuel)
+                    regrets[p][r] += regret
+
         print("-------------------------------")
         
         #depose les coupes-files
@@ -405,7 +438,9 @@ def main():
         case "G":
             namestrat1 = "greedy"
         case "F":
-            namestrat1 = "fictitous play"
+            namestrat1 = "fictitious play"
+        case "R":
+            namestrat1 = "regret-matching"
 
     match strat2:
         case "A":
@@ -417,7 +452,9 @@ def main():
         case "G":
             namestrat2 = "greedy"
         case "F":
-            namestrat2 = "fictitous play"
+            namestrat2 = "fictitious play"
+        case "R":
+            namestrat2 = "regret-matching"
             
     print(ttl_points)
     x = []
